@@ -7,9 +7,14 @@ volumes:
   redis: {}
   registry: {}
   s3: {}
-
+networks:
+  web:
+    external: true
+  backend:
 services:
   api:
+    networks:
+      - backend
     extends:
       file: ./common.yml
       service: component
@@ -61,6 +66,8 @@ services:
     extends:
       file: ./common.yml
       service: component
+    networks:
+      - backend
     image: balena/open-balena-registry:${OPENBALENA_REGISTRY_VERSION_TAG}
     depends_on:
       - s3
@@ -90,6 +97,8 @@ services:
     extends:
       file: ./common.yml
       service: component
+    networks:
+      - backend
     image: balena/open-balena-vpn:${OPENBALENA_VPN_VERSION_TAG}
     depends_on:
       - api
@@ -114,6 +123,8 @@ services:
     extends:
       file: ./common.yml
       service: system
+    networks:
+      - backend
     image: balena/open-balena-db:${OPENBALENA_DB_VERSION_TAG}
     volumes:
       - db:/var/lib/postgresql/data
@@ -122,6 +133,8 @@ services:
     extends:
       file: ./common.yml
       service: component
+    networks:
+      - backend
     image: balena/open-balena-s3:${OPENBALENA_S3_VERSION_TAG}
     volumes:
       - s3:/export
@@ -134,6 +147,8 @@ services:
     extends:
       file: ./common.yml
       service: system
+    networks:
+      - backend
     image: redis:alpine
     volumes:
       - redis:/data
@@ -152,15 +167,15 @@ services:
       - registry
       - vpn
     ports:
-      - "80:80"
-      - "443:443"
       - "3128:3128"
+      - "8443:8443"
+
     expose:
       - "222"
       - "5432"
       - "6379"
     networks:
-      default:
+      backend:
         aliases:
           - api.${OPENBALENA_HOST_NAME}
           - registry.${OPENBALENA_HOST_NAME}
@@ -168,6 +183,21 @@ services:
           - db.${OPENBALENA_HOST_NAME}
           - s3.${OPENBALENA_HOST_NAME}
           - redis.${OPENBALENA_HOST_NAME}
+      web:
+        aliases:
+          - api.${OPENBALENA_HOST_NAME}
+          - registry.${OPENBALENA_HOST_NAME}
+          - vpn.${OPENBALENA_HOST_NAME}
+          - db.${OPENBALENA_HOST_NAME}
+          - s3.${OPENBALENA_HOST_NAME}
+          - redis.${OPENBALENA_HOST_NAME}
+    labels:
+      - "traefik.docker.network=web"
+      - "traefik.enable=true"
+      - "traefik.basic.frontend.rule=Host:api.${OPENBALENA_HOST_NAME},registry.${OPENBALENA_HOST_NAME},s3.${OPENBALENA_HOST_NAME},vpn.${OPENBALENA_HOST_NAME}"
+      - "traefik.basic.port=80"
+      - "traefik.basic.protocol=http"
+
     environment:
       BALENA_HAPROXY_CRT: ${OPENBALENA_ROOT_CRT}
       BALENA_HAPROXY_KEY: ${OPENBALENA_ROOT_KEY}
@@ -185,3 +215,5 @@ services:
       ACTIVE: ${OPENBALENA_ACME_CERT_ENABLED}
       DOMAINS: "api.${OPENBALENA_HOST_NAME},registry.${OPENBALENA_HOST_NAME},s3.${OPENBALENA_HOST_NAME},vpn.${OPENBALENA_HOST_NAME}"
       OUTPUT_PEM: /certs/open-balena.pem
+    networks:
+      - backend
