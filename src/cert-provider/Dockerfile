@@ -4,7 +4,7 @@ EXPOSE 80
 WORKDIR /usr/src/app
 VOLUME [ "/usr/src/app/certs" ]
 
-RUN apk add --update bash curl git openssl ncurses socat
+RUN apk add --update bash curl git openssl ncurses socat xxd
 
 # from https://github.com/Neilpang/acme.sh/releases/tag/2.8.5
 RUN git clone https://github.com/Neilpang/acme.sh.git && \
